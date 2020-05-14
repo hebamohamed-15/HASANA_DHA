@@ -1,0 +1,213 @@
+SELECT DISTINCT INV.INVESTIGATION,
+                inv.SUBJECT_ID,
+                INV.Clinical_Condition,
+                (SELECT LISTAGG(CAI.ADDITIONAL_ID_VALUE, ' , ') WITHIN
+                  GROUP(
+                  ORDER BY CAI.ADDITIONAL_ID_VALUE)
+                   FROM CLIENT_ADDITIONAL_ID CAI
+                  WHERE (SELECT cd.description
+                           FROM REPORTNG.concept_description cd
+                          WHERE cd.coded_concept_id = CAI.ADDITIONAL_ID_TYPE
+                            AND cd.description_language = 'en'
+                            AND cd.is_deleted_ind = 'N'
+                            AND PUBLISH_END_DATE IS NULL) = 'EPIC ID'
+                    AND CAI.SUBJECT_ID = INV.SUBJECT_ID) Salama_MRN,
+                NVL(flat.PASSPORTNUM,
+                    (SELECT LISTAGG(CAI.ADDITIONAL_ID_VALUE, ' , ') WITHIN
+                      GROUP(
+                      ORDER BY CAI.ADDITIONAL_ID_VALUE)
+                       FROM CLIENT_ADDITIONAL_ID CAI
+                      WHERE (SELECT cd.description
+                               FROM REPORTNG.concept_description cd
+                              WHERE cd.coded_concept_id =
+                                    CAI.ADDITIONAL_ID_TYPE
+                                AND cd.description_language = 'en'
+                                AND cd.is_deleted_ind = 'N'
+                                AND PUBLISH_END_DATE IS NULL) =
+                            'Passport number'
+                        AND CAI.SUBJECT_ID = inv.SUBJECT_ID)) AS Passport_Num,
+                (SELECT CAI.ADDITIONAL_ID_VALUE
+                   FROM CLIENT_ADDITIONAL_ID CAI
+                  WHERE (SELECT cd.description
+                           FROM REPORTNG.concept_description cd
+                          WHERE cd.coded_concept_id = CAI.ADDITIONAL_ID_TYPE
+                            AND cd.description_language = 'en'
+                            AND cd.is_deleted_ind = 'N'
+                            AND PUBLISH_END_DATE IS NULL) = 'Case Code'
+                    AND CAI.SUBJECT_ID = INV.SUBJECT_ID) CASE_CODE,
+                INV.FULL_NAME,
+                inv.GENDER,
+                inv.age_in_years,
+                inv.NATIONALITY,
+                inv.BIRTH_DATE BOD,
+                CLIENT_ELECTRONIC_ADDRESS.AREA_CODE,
+                CLIENT_ELECTRONIC_ADDRESS.AREA_CODE || '-' ||
+                CLIENT_ELECTRONIC_ADDRESS.PHONE PHONE,
+                CASE
+                  WHEN CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_1 IS NULL THEN
+                   CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_2
+                  WHEN CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_2 IS NULL THEN
+                   CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_1
+                  WHEN CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_2 IS NULL AND
+                       CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_1 IS NULL THEN
+                   NULL
+                  ELSE
+                   CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_1 || ',' ||
+                   CLIENT_PHY.INTERNATIONAL_ADDRESS_LINE_2
+                END ADDRESS_DETAILS,
+                (SELECT cd.description
+                   FROM REPORTNG.concept_description cd
+                  WHERE cd.coded_concept_id = CLIENT_PHY.PROVINCE
+                    AND cd.description_language = 'en'
+                    AND cd.is_deleted_ind = 'N'
+                    AND PUBLISH_END_DATE IS NULL) EMIRATE,
+                (SELECT cd.description
+                   FROM REPORTNG.concept_description cd
+                  WHERE cd.coded_concept_id = CLIENT_PHY.CITY
+                    AND cd.description_language = 'en'
+                    AND cd.is_deleted_ind = 'N'
+                    AND PUBLISH_END_DATE IS NULL) CITY,
+                (SELECT cd.description
+                   FROM REPORTNG.concept_description cd
+                  WHERE cd.coded_concept_id = CLIENT_PHY.DISTRICT_CNCPT_ID
+                    AND cd.description_language = 'en'
+                    AND cd.is_deleted_ind = 'N'
+                    AND PUBLISH_END_DATE IS NULL) DISTRICT,
+                (SELECT cd.description
+                   FROM REPORTNG.concept_description cd
+                  WHERE cd.coded_concept_id = CLIENT_PHY.AREA_CNCPT_ID
+                    AND cd.description_language = 'en'
+                    AND cd.is_deleted_ind = 'N'
+                    AND PUBLISH_END_DATE IS NULL) AREA,
+                CLIENT_PHY.MAKANI_NUMBER MAKANI,
+                inv.CLASSIFICATION_DATE,
+                INV.DISPOSITION INV_DISPOSITION,
+                -------------*** PUI DATA ****----------------------------------------------
+                flat. ONSET_DATE,
+                flat.Notification_Date,
+                
+                flat. Travel_History,
+                flat. Arrival_Date1,
+                flat. Travel_Country,
+                
+                flat. Flight_Crew,
+                flat. Healthcare_Staff,
+                
+                flat. pregnancy,
+                flat.diabetes,
+                flat.cardiacdisease,
+                flat.hypertension,
+                flat.chronicpulmonary,
+                flat.chronicliver,
+                flat.chronickidney,
+                flat.immunocompromised,
+                flat.unknowncondition,
+                flat.detectionfacility,
+                flat.flightdetails,
+                flat.airlinedetails,
+                flat.Test_Reason,
+                flat.Additional_Notes,
+                flat. Healthcare_Facility,
+                flat.Airline,
+                
+                -------------------------------------------------------
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION, 1, 'DATE') FIRST_LAST_RESULT_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              1,
+                                              'RESULT') FIRST_LAST_RESULT,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION, 2, 'DATE') SECOND_LAST_RESULT_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              2,
+                                              'RESULT') SECOND_LAST_RESULT,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION, 3, 'DATE') THIRD_LAST_RESULT_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              3,
+                                              'RESULT') THIRD_LAST_RESULT,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION, 0, 'DATE') FIRST_RESULT_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              0,
+                                              'RESULT') FIRST_RESULT,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              0,
+                                              'SPEC_DATE') FIRST_SPECIMEN_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              1,
+                                              'SPEC_DATE') FIRST_LAST_SPECIMEN_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              2,
+                                              'SPEC_DATE') SECOND_LAST_SPECIMEN_DATE,
+                hasana_ll_rpt.get_lab_results(inv.INVESTIGATION,
+                                              3,
+                                              'SPEC_DATE') THIRD_LAST_SPECIMEN_DATE,
+                HASANA_LL_RPT.GET_1ST_POSITIVE_PCR_DATE(inv.investigation) first_positive_pcr_d,
+                HASANA_LL_RPT.GET_1ST_POSITIVE_RES_DATE(inv.investigation) first_positive_res_d,
+                HASANA_LL_RPT.GET_END_DISEASE_PERIOD(inv.investigation) second_negative_res_date,
+                ------------------*** INTERVENTION *****-----------------------------
+                INV.INTERVENTION_TYPE,
+                INV.INTV_ID,
+                INV.INTERVENTION_SUBTYPE,
+                INV.INTERVENTION_DISPOSITION,
+                INV.INTERVENTION_OUTCOME,
+                INV.START_DATE,
+                INV.END_DATE,
+                
+                ----------***ADT Section Data*****----------------------------------------
+                INV.ADMISSION_DATE,
+                INV.ADT_ID,
+                INV.ADMISSION_TYPE,
+                INV.ADMITTING_FACILITY,
+                INV.DISCHARGE_DATE,
+                INV.ADMISSION_DISPOSITION,
+                -----****** OUTCOME DATA ****---------------
+                 INV.OUTCOME,
+                INV.OUTCOME_DATE,
+                INV.OUTC_CREATED_ON,
+                HASANA_LL_RPT.GET_MOST_OUTCOME_DECEASED(inv.investigation,
+                                                        INV.OUTCOME_DATE,
+                                                        INV.outc_created_on) MOST_OUTCONE_DECEASED,
+                
+                (SELECT (SELECT cd.description
+                           FROM REPORTNG.concept_description cd
+                          WHERE cd.coded_concept_id = oc.OCCUPATION
+                            AND cd.description_language = 'en'
+                            AND cd.is_deleted_ind = 'N'
+                            AND PUBLISH_END_DATE IS NULL)
+                   FROM OCCUPATION OC
+                  WHERE OC.SUBJECT_ID = inv.subject_id
+                    AND oc.CREATED_ON =
+                        (SELECT MAX(oc1.created_on)
+                           FROM OCCUPATION OC1
+                          WHERE OC1.SUBJECT_ID = inv.subject_id)) CLIENT_OCCUPATION
+
+  from V_INVESTIGATION_DETAILS INV,
+       V_PUI_DATA_DETAILS flat,
+       client_electronic_Address,
+       CLIENT_ADDRESS_XREF CLENT_XREF,
+       CLIENT_PHYSICAL_ADDRESS CLIENT_PHY
+
+ where INV.classification_group = 'Case'
+   AND INV.classification = 'Confirmed'
+   AND INV.DISEASE = 'COVID-19'
+      
+   and INV.investigation = flat.INVESTIGATION_ID(+)
+   AND inv.SUBJECT_ID = CLIENT_ELECTRONIC_ADDRESS.SUBJECT_ID(+)
+   AND client_electronic_Address.PREFERRED_INDICATOR(+) = 'Y'
+   AND (client_electronic_Address.created_on =
+       (SELECT MAX(created_on)
+           FROM client_electronic_Address x
+          WHERE x.SUBJECT_ID = INV.SUBJECT_ID
+            AND x.PREFERRED_INDICATOR = 'Y') OR
+       client_electronic_Address.created_on IS NULL)
+   AND inv.SUBJECT_ID = CLENT_XREF.SUBJECT_ID(+)
+   AND CLENT_XREF.PREFERRED_INDICATOR(+) = 'Y'
+   AND CLENT_XREF.CLIENT_PHYSICAL_ADDRESS_ID =
+       CLIENT_PHY.CLIENT_PHYSICAL_ADDRESS_ID(+)
+   AND (CLIENT_PHY.created_on =
+       (SELECT MAX(CLIENT_PHY1.created_on)
+           FROM CLIENT_PHYSICAL_ADDRESS CLIENT_PHY1,
+                CLIENT_ADDRESS_XREF     CLENT_XREF1
+          WHERE CLENT_XREF1.CLIENT_PHYSICAL_ADDRESS_ID =
+                CLIENT_PHY1.CLIENT_PHYSICAL_ADDRESS_ID
+            AND CLENT_XREF1.PREFERRED_INDICATOR = 'Y'
+            AND CLENT_XREF1.SUBJECT_ID = INV.SUBJECT_ID) OR
+       CLIENT_PHY.created_on IS NULL)

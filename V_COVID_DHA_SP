@@ -1,0 +1,384 @@
+create or replace view V_COVID_DHA_SP AS
+     SELECT   TO_CHAR (SUBJECT_ID) AS "SUBJECT_ID",
+              INVESTIGATION,
+              Salama_MRN AS "Salama MRN",
+              FIRST_NAME,
+              MIDDLE_NAME,
+              LAST_NAME,
+              EMIRATES_ID,
+              TO_CHAR(CASE
+                         WHEN DOB IS NULL
+                         THEN
+                            NULL
+                         ELSE
+                            (TRUNC(MONTHS_BETWEEN (SYSDATE, NVL (DOB, SYSDATE))
+                                   / 12))
+                      END)
+                 AS Age,
+              DOB AS "Date Of Birth",
+              GENDER AS "Sex",
+              --nationality_id,
+              NATIONALITY,
+              TRAVEL_HISTORY AS "Travel History",
+              TRAVEL_COUNTRY AS "Travel Country",
+              airlinedetails AS "Airline",
+              flightdetails AS "Flight No",
+              ARRIVAL_DATE1 AS "Arrival Date",
+              ONSET_DATE AS "DATE of OnSet",
+              Test_Reason AS "Case Classification",
+              first_positive_pcr_d AS "1st positive PCR Sample Date",
+              NVL (first_positive_pcr_d,
+                   NVL (first_positive_res_d, CLASSIFICATION_DATE))
+                 AS "Infection Date",
+              CLASSIFICATION_DATE CLASSIFICATION_DATE,
+              first_positive_res_d First_Positive_Result_date,
+              first_positive_pcr_d first_positive_collection_date,
+              THIRD_LAST_SPECIMEN_DATE AS "1rd Last PCR Sample Date",
+              THIRD_LAST_RESULT AS "1st Last PCR Result",
+              SECOND_LAST_SPECIMEN_DATE AS "2nd Last PCR Sample Date",
+              SECOND_LAST_RESULT AS "2nd Last PCR Result",
+              FIRST_LAST_SPECIMEN_DATE AS "3rd Last PCR Sample Date",
+              FIRST_LAST_RESULT AS "3rd Last PCR Result",
+              ADMISSION_DISPOSITION AS "Clinical Admission Status",
+              ADT_ID,
+              INTV_ID,
+              INTERVENTION_SUBTYPE,
+              ADMISSION_DISPOSITION AS "Admission disposition",
+              ADMISSION_TYPE AS "Admission Location",
+              TRUNC (ADMISSION_DATE) AS "Admission Date",
+              ADMITTING_FACILITY AS "Admission Facility",
+               DECODE (
+                 ADT_ID,
+                 NULL,
+                 NULL,
+                 DECODE (
+                    DISCHARGE_DATE,
+                    NULL,
+                    DECODE (ADMISSION_DISPOSITION, 'Discharged', 'Yes', 'No'),
+                    'Yes'
+                 )
+              )
+                 AS "DISCHARGE STATUS",
+              DISCHARGE_DATE AS "Discharge Date",
+              INTERVENTION_SUBTYPE || ' ' || INTERVENTION_TYPE
+                 AS "Intervention",
+              START_DATE AS "Intervention Start Date",
+              END_DATE AS "Intervention End Date",
+              CASE
+                 WHEN (ADT_ID IS NULL AND INTV_ID IS NULL) THEN 'No'
+                 ELSE 'Yes'
+              END
+                 AS "Action",
+              HASANA_LL_RPT.GET_END_DISEASE_PERIOD (INVESTIGATION)
+                 second_negative_date,
+              OUTCOME OUTCOME_ORIGINAL,
+              HASANA_LL_RPT.GET_COMBINED_OUTCOME_DATE (
+                 OUTCOME,
+                 INVESTIGATION,
+                 NVL (first_positive_pcr_d,
+                      NVL (first_positive_res_d, CLASSIFICATION_DATE)),
+                 NVL (OUTCOME_DATE, OUTC_CREATED_ON)
+              )
+              - (NVL (first_positive_pcr_d,
+                      NVL (first_positive_res_d, CLASSIFICATION_DATE)))
+                 AS "Disease Period Course",
+              CASE
+                 WHEN OUTCOME = 'Deceased' THEN MOST_OUTCONE_DECEASED
+                 ELSE NULL
+              END
+                 AS "Deceased cases Infection S",
+              HASANA_LL_RPT.GET_CALCULATED_OUTCOME (
+                 OUTCOME,
+                 INVESTIGATION,
+                 NVL (first_positive_pcr_d,
+                      NVL (first_positive_res_d, CLASSIFICATION_DATE))
+              )
+                 AS "Combined Outcome",
+              HASANA_LL_RPT.GET_COMBINED_OUTCOME_DATE (
+                 OUTCOME,
+                 INVESTIGATION,
+                 NVL (first_positive_pcr_d,
+                      NVL (first_positive_res_d, CLASSIFICATION_DATE)),
+                 NVL (OUTCOME_DATE, OUTC_CREATED_ON)
+              )
+                 AS "Combined Ootcome Date",
+              CASE
+                 WHEN EMIRATES_ID IS NOT NULL THEN 'Yes'
+                 ELSE UAE_RESIDENCY
+              END
+                 AS "UAE Residency",
+              PASSPORT_NUM AS "PASSPORT No",
+              CASE WHEN PREGNANCY = 'Yes' THEN 'Pregnancy ' ELSE NULL END
+              || CASE WHEN DIABETES = 'Yes' THEN 'Diabetes ' ELSE NULL END
+              || CASE
+                    WHEN CARDIACDISEASE = 'Yes' THEN 'CARDIACDISEASE '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN HYPERTENSION = 'Yes' THEN 'HYPERTENSION '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN CHRONICPULMONARY = 'Yes' THEN 'CHRONICPULMONARY '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN CHRONICLIVER = 'Yes' THEN 'CHRONICLIVER '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN CHRONICKIDNEY = 'Yes' THEN 'CHRONICKIDNEY '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN IMMUNOCOMPROMISED = 'Yes' THEN 'IMMUNOCOMPROMISED '
+                    ELSE NULL
+                 END
+              || CASE
+                    WHEN UNKNOWNCONDITION = 'Yes' THEN 'UNKNOWNCONDITION '
+                    ELSE NULL
+                 END
+                 Comobrid,
+              NVL (patientoccupation, CLIENT_OCCUPATION) AS "Occupation",
+              ADDRESS_DETAILS AS "Address",
+              EMIRATE,
+              CITY,
+              DISTRICT,
+              AREA,
+              MAKANI,
+              DECODE (PHONE, '-', NULL, PHONE) AS "Telephone Number/s ",
+              HEALTHCARE_STAFF AS "Health care Worker/related",
+              Healthcare_Facility AS "Health care Facility",
+              Flight_Crew AS "Airline Employee",
+              AIRLINE AS "Airline Employee/related",
+              detectionfacility AS "Detection Facility/point",
+              Additional_Notes AS "Additional Notes",
+              DEATH_DATE AS "Deceased Date"
+       -- CLASSIFICATION_DATE,
+
+       FROM   (SELECT   DISTINCT
+                        INV.INVESTIGATION,
+                        inv.SUBJECT_ID,
+                        /*human_subject.HEALTH_CARD_NUMBER*/
+                        inv.EMIRATES_ID,
+                        (SELECT   LISTAGG (
+                                     CAI.ADDITIONAL_ID_VALUE,
+                                     ' , '
+                                  )
+                                     WITHIN GROUP (ORDER BY
+                                                      CAI.ADDITIONAL_ID_VALUE)
+                           FROM   CLIENT_ADDITIONAL_ID CAI
+                          WHERE   (SELECT   cd.description
+                                     FROM   REPORTNG.concept_description cd
+                                    WHERE   cd.coded_concept_id =
+                                               CAI.ADDITIONAL_ID_TYPE
+                                            AND cd.description_language = 'en'
+                                            AND cd.is_deleted_ind = 'N'
+                                            AND PUBLISH_END_DATE IS NULL) =
+                                     'EPIC ID'
+                                  AND CAI.SUBJECT_ID = inv.SUBJECT_ID)
+                           Salama_MRN,
+                        NVL (
+                           flat.PASSPORTNUM,
+                           (SELECT   LISTAGG (
+                                        CAI.ADDITIONAL_ID_VALUE,
+                                        ' , '
+                                     )
+                                        WITHIN GROUP (ORDER BY
+                                                         CAI.ADDITIONAL_ID_VALUE)
+                              FROM   CLIENT_ADDITIONAL_ID CAI
+                             WHERE   (SELECT   cd.description
+                                        FROM   REPORTNG.concept_description cd
+                                       WHERE   cd.coded_concept_id =
+                                                  CAI.ADDITIONAL_ID_TYPE
+                                               AND cd.description_language =
+                                                     'en'
+                                               AND cd.is_deleted_ind = 'N'
+                                               AND PUBLISH_END_DATE IS NULL) =
+                                        'Passport number'
+                                     AND CAI.SUBJECT_ID = inv.SUBJECT_ID)
+                        )
+                           AS Passport_Num,
+                        inv.FIRST_NAME,
+                        inv.middle_name,
+                        inv.LAST_NAME,
+                        inv.gender GENDER,
+                        inv.NATIONALITY,
+                        inv.BIRTH_DATE DOB,
+                        FLAT.patientoccupation,
+                        FLAT.UAE_Residency,
+                        --CLIENT_ELECTRONIC_ADDRESS.AREA_CODE,
+                        CA.PHONE,
+                        CA.ADDRESS_DETAILS,
+                        CA.EMIRATE,
+                        CA.CITY,
+                        CA.DISTRICT,
+                        CA.AREA,
+                        CA.MAKANI_NUMBER MAKANI,
+                        inv.CLASSIFICATION_DATE,
+                        -------------*** PUI DATA ****----------------------------------------------
+                        flat.MAX_CREATED_ON,
+                        FLAT.ENCOUNTER_ID,
+                        flat.detectionfacility,
+                        flat.ONSET_DATE,
+                        flat.Notification_Date,
+                        flat.Travel_History,
+                        flat.Arrival_Date1,
+                        flat.Travel_Country,
+                        flat.Flight_Crew,
+                        flat.Healthcare_Staff,
+                        flat.pregnancy,
+                        flat.diabetes,
+                        flat.cardiacdisease,
+                        flat.hypertension,
+                        flat.chronicpulmonary,
+                        flat.chronicliver,
+                        flat.chronickidney,
+                        flat.immunocompromised,
+                        flat.unknowncondition,
+                        flat.hospitalization,
+                        ---------***** LAB DATA **-------------------------------------------------------
+                        lab.FIRST_LAST_RESULT_DATE,
+                        lab.FIRST_LAST_RESULT,
+                        lab.SECOND_LAST_RESULT_DATE,
+                        lab.SECOND_LAST_RESULT,
+                        lab.THIRD_LAST_RESULT_DATE,
+                        lab.THIRD_LAST_RESULT,
+                        lab.FIRST_RESULT_DATE,
+                        lab.FIRST_RESULT,
+                        lab.FIRST_SPECIMEN_DATE,
+                        lab.FIRST_LAST_SPECIMEN_DATE,
+                        lab.SECOND_LAST_SPECIMEN_DATE,
+                        lab.THIRD_LAST_SPECIMEN_DATE,
+                        lab.first_positive_pcr_d,
+                        lab.first_positive_res_d,
+                        lab.second_negative_res_date,
+                        ------------------*** INTERVENTION *****-----------------------------
+
+                        inv.INTERVENTION_TYPE,
+                        INV.INTV_ID,
+                        inv.INTERVENTION_SUBTYPE,
+                        inv.START_DATE,
+                        inv.END_DATE,
+                        ----------***ADT Section Data*****----------------------------------------
+                        inv.ADMISSION_DATE,
+                        inv.ADT_ID,
+                        inv.ADMISSION_TYPE,
+                        inv.ADMITTING_FACILITY,
+                        inv.DISCHARGE_DATE,
+                        inv.ADMISSION_DISPOSITION,
+                        -----****** OUTCOME DATA ****---------------
+                        inv.OUTCOME,
+                        inv.OUTCOME_DATE,
+                        inv.OUTC_CREATED_ON,
+                        HASANA_LL_RPT.GET_MOST_OUTCOME_DECEASED (
+                           inv.investigation,
+                           inv.OUTCOME_DATE,
+                           inv.outc_CREATED_ON
+                        )
+                           MOST_OUTCONE_DECEASED,
+                        ---------------------------****** INestigation Form **--------------------------
+
+                        flat.Test_Reason,
+                        flat.Additional_Notes,
+                        flat.Healthcare_Facility,
+                        flat.Airline,
+                        flat.staff_Number,
+                        flat.Healthcare_facility_details,
+                        flat.airlinedetails,
+                        flat.flightdetails,
+                        -------------------------------------
+                        -- inv.DIAGNOSIS_DATE INVESTIGATION_DATE,
+                        ---------------------------------------------------------------
+
+                        (SELECT   (SELECT   cd.description
+                                     FROM   REPORTNG.concept_description cd
+                                    WHERE   cd.coded_concept_id = oc.OCCUPATION
+                                            AND cd.description_language = 'en'
+                                            AND cd.is_deleted_ind = 'N'
+                                            AND PUBLISH_END_DATE IS NULL)
+                           FROM   OCCUPATION OC
+                          WHERE   OC.SUBJECT_ID = inv.subject_id
+                                  AND oc.CREATED_ON =
+                                        (SELECT   MAX (oc1.created_on)
+                                           FROM   OCCUPATION OC1
+                                          WHERE   OC1.SUBJECT_ID =
+                                                     inv.subject_id))
+                           CLIENT_OCCUPATION,
+                        inv.DEATH_DATE
+                 ---
+
+                 FROM   (SELECT   ROW_NUMBER ()
+                                     OVER (PARTITION BY SUBJECT_ID
+                                           ORDER BY classification_date)
+                                     inv_RN,
+                                  x.*
+                           FROM   V_INVESTIGATION_DETAILS x
+                          WHERE   x.CLASSIFICATION = 'Confirmed'
+                                  AND x.CLASSIFICATION_GROUP = 'Case') INV,
+                        ---------------Added by Swasti to derive the Cause of Death----------------
+
+                        V_CLIENT_ADDRESS CA,
+                        V_PUI_DATA_DETAILS flat,
+                        V_LABs_DETAILS lab
+                WHERE       INV.investigation = FLAT.INVESTIGATION_ID(+)
+                        AND inv.SUBJECT_ID = CA.SUBJECT_ID(+)
+                        AND INV.investigation = LAB.investigation_id(+)
+                        AND inv.SUBJECT_ID <> 1
+                        AND inv_rn = 1 -- AND INV.CLASSIFICATION = 'Confirmed'
+                                      -- AND INV.CLASSIFICATION_GROUP = 'Case'
+
+                                --------Added by Swasti for Cause of Death----
+
+                                     -- and inv.subject_id in (294117, 325309)
+                                --and inv.investigation_id in (7593,3807,6754)
+                                       --and human_subject.subject_id = 192350
+
+/*  GROUP BY FLAT.ENCOUNTER_ID,
+                                                                                                                                                                                                                                                                                                                        INV.INVESTIGATION_ID,
+           Inv.created_on,
+           Inv.created_by,
+           human_subject.SUBJECT_ID,
+           subject_name.FIRST_NAME,
+           subject_name.middle_name,
+           subject_name.LAST_NAME,
+           human_subject.BIRTH_DATE,
+           gender,
+           nationality_cncpt_id,
+           ADT.ADT_ID,
+           INTV.INTERVENTION_ID,
+           human_subject.HEALTH_CARD_NUMBER,
+           CA.PHONE,
+           CA.ADDRESS_DETAILS,
+           CA.EMIRATE,
+           CA.CITY,
+           CA.DISTRICT,
+           CA.AREA,
+           CA.MAKANI_NUMBER,
+           cld.CLASSN_GROUP_CODE_CNCPT_ID,
+           cld.CLASSIFICATION_CODE_CNCPT_ID,
+           CLD.CLASSIFICATION_DATE,
+           ADT.ADMISSION_DATE,
+           ADT.ADMISSION_TYPE,
+           ADT.TRANSFER_TO,
+           ADT.DISCHARGE_DATE,
+           ADT.DISPOSITION,
+           OUTC.CREATED_ON,
+           INTV.INTERVENTION_TYPE,
+           INTV.INTERVENTION_SUBTYPE,
+           INTV.INTERVENTION_DISPOSITION,
+           INTV.START_DATE,
+           INTV.END_DATE,
+           OUTC.OUTCOME,
+           OUTC.OUTCOME_DATE,
+           inv.DIAGNOSIS_DATE,
+           INV_HIST.DISPOSITION_CODE_CNCPT_ID,
+           --ENC.ENCOUNTER_TYPE,
+           intv.INTERVENTION_OTCM_CD_CNCPT_ID,
+           INTV.ENCOUNTER_ID,
+           outcome,
+           death_date,
+           CAUSE_DEATH)*/
+              )
+   ORDER BY   INVESTIGATION;
+
